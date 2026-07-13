@@ -20,6 +20,30 @@ import { notifyVerificationComplete } from '../lib/auth-sync'
 
 type VerifyStatus = 'verifying' | 'success' | 'error'
 
+function hasHashCredentials(hashParams: URLSearchParams) {
+  return Boolean(hashParams.get('access_token'))
+}
+
+function isRecoverableServerRedirectError(error: string, hashParams: URLSearchParams, searchParams: URLSearchParams) {
+  const recoverableErrors = new Set([
+    'missing_verification_credentials',
+    'missing_reset_credentials',
+    'verification_failed',
+    'reset_failed',
+  ])
+
+  if (!recoverableErrors.has(error)) {
+    return false
+  }
+
+  return Boolean(
+    searchParams.get('token_hash') ||
+      searchParams.get('token') ||
+      searchParams.get('code') ||
+      hasHashCredentials(hashParams),
+  )
+}
+
 export function SignUpVerifyPage() {
   const { setSessionUser } = useAuth()
   const { showToast } = useToast()
@@ -45,13 +69,24 @@ export function SignUpVerifyPage() {
       const searchParams = new URLSearchParams(window.location.search)
       const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
 
+      const code = searchParams.get('code')
+      const tokenHash = searchParams.get('token_hash') ?? searchParams.get('token')
+      const verifyType = searchParams.get('type') ?? hashParams.get('type') ?? 'signup'
+      const accessToken = hashParams.get('access_token') ?? undefined
+      const refreshToken = hashParams.get('refresh_token') ?? undefined
+
+      if (verifyType === 'recovery' || hashParams.get('type') === 'recovery') {
+        window.location.replace(`/reset-password${window.location.search}${window.location.hash}`)
+        return
+      }
+
       const authError =
         searchParams.get('error_description') ??
         hashParams.get('error_description') ??
         searchParams.get('error') ??
         hashParams.get('error')
 
-      if (authError) {
+      if (authError && !isRecoverableServerRedirectError(authError, hashParams, searchParams)) {
         const decodedError = decodeURIComponent(authError.replace(/\+/g, ' '))
         if (isPkceVerificationError(decodedError) || isAlreadyVerifiedMessage(decodedError)) {
           redirectToSignInAfterVerification()
@@ -60,17 +95,6 @@ export function SignUpVerifyPage() {
         if (!active) return
         setStatus('error')
         setMessage(decodedError)
-        return
-      }
-
-      const code = searchParams.get('code')
-      const tokenHash = searchParams.get('token_hash') ?? searchParams.get('token')
-      const verifyType = searchParams.get('type') ?? hashParams.get('type') ?? 'signup'
-      const accessToken = hashParams.get('access_token') ?? undefined
-      const refreshToken = hashParams.get('refresh_token') ?? undefined
-
-      if (verifyType === 'recovery') {
-        window.location.replace(`/reset-password${window.location.search}${window.location.hash}`)
         return
       }
 
@@ -84,12 +108,12 @@ export function SignUpVerifyPage() {
         // Continue with link verification below.
       }
 
-      if (code && !tokenHash && !(accessToken && refreshToken)) {
+      if (code && !tokenHash && !accessToken) {
         redirectToSignInAfterVerification()
         return
       }
 
-      if (!tokenHash && !(accessToken && refreshToken)) {
+      if (!tokenHash && !accessToken) {
         if (!active) return
         setStatus('error')
         setMessage('This sign-up link is invalid or has expired. Start sign-up again to receive a new link.')

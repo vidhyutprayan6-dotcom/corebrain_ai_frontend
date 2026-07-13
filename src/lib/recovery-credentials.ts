@@ -20,7 +20,19 @@ export function parseRecoveryLink(search: string, hash: string): ParsedRecoveryL
     hashParams.get('error')
 
   if (authError) {
-    return { ok: false, error: decodeURIComponent(authError.replace(/\+/g, ' ')) }
+    const recoverableErrors = new Set([
+      'missing_verification_credentials',
+      'missing_reset_credentials',
+      'verification_failed',
+      'reset_failed',
+    ])
+    const hasCredentials =
+      Boolean(searchParams.get('token_hash') || searchParams.get('token') || searchParams.get('code')) ||
+      Boolean(hashParams.get('access_token'))
+
+    if (!(recoverableErrors.has(authError) && hasCredentials)) {
+      return { ok: false, error: decodeURIComponent(authError.replace(/\+/g, ' ')) }
+    }
   }
 
   const code = searchParams.get('code') ?? undefined

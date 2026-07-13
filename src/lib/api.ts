@@ -45,17 +45,56 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
+function normalizeApiBase(rawValue: string) {
+  const raw = rawValue.trim().replace(/\/$/, '')
+  if (!raw) return ''
+
+  if (/^https?:\/\//i.test(raw)) {
+    return raw
+  }
+
+  // Hostnames without a protocol are treated as relative paths by fetch().
+  if (!raw.startsWith('/')) {
+    return `https://${raw}`
+  }
+
+  return raw
+}
+
+const API_BASE = normalizeApiBase(import.meta.env.VITE_API_URL ?? '')
+
+function getApiBaseConfigError(): string | null {
+  if (!API_BASE) {
+    return import.meta.env.PROD
+      ? 'VITE_API_URL is not set on Vercel. Add your Railway public URL (https://your-app.up.railway.app).'
+      : 'VITE_API_URL is not set. Add it to web/.env.'
+  }
+
+  if (API_BASE.includes('.railway.internal') || API_BASE.includes('.internal/')) {
+    return 'VITE_API_URL must use your Railway public domain (https://....up.railway.app), not the private .railway.internal URL.'
+  }
+
+  if (import.meta.env.PROD && !API_BASE.startsWith('https://')) {
+    return 'VITE_API_URL must start with https:// in production.'
+  }
+
+  return null
+}
 
 function apiUrl(path: string) {
   return `${API_BASE}${path}`
 }
 
 const BACKEND_UNREACHABLE = import.meta.env.PROD
-  ? 'Cannot reach the backend API. Check VITE_API_URL on Vercel and CORS_ORIGIN on Render, then redeploy both services.'
+  ? 'Cannot reach the backend API. Check VITE_API_URL on Vercel (must be https://your-app.up.railway.app) and CORS_ORIGIN on Railway, then redeploy both services.'
   : 'Cannot reach the backend API. Start the server with: cd server && npm run dev'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const configError = getApiBaseConfigError()
+  if (configError) {
+    throw new ApiError(configError, 0)
+  }
+
   let response: Response
 
   try {
