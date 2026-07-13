@@ -1,0 +1,209 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dashboard-root {
+  --db-header-h: 3.5rem;
+  --db-bg: #faf9f6;
+  --db-sidebar: #fdfcfa;
+  --db-surface: #ffffff;
+  --db-surface-muted: #f4f4f5;
+  --db-border: #e4e4e7;
+  --db-text: #18181b;
+  --db-muted: #71717a;
+  --db-hover: #f4f4f5;
+  --db-active-bg: #fff7ed;
+  --db-active-text: #c2410c;
+  --db-active-icon: #ea580c;
+  --db-overlay: rgb(0 0 0 / 0.2);
+  --db-dropdown: #ffffff;
+  --db-shadow: rgb(0 0 0 / 0.08);
+}
+
+.dashboard-root.dark {
+  --db-bg: #1e1e1e;
+  --db-sidebar: #171717;
+  --db-surface: #262626;
+  --db-surface-muted: #2f2f2f;
+  --db-border: #3f3f46;
+  --db-text: #f4f4f5;
+  --db-muted: #a1a1aa;
+  --db-hover: #2f2f2f;
+  --db-active-bg: #3f3f46;
+  --db-active-text: #fdba74;
+  --db-active-icon: #fb923c;
+  --db-overlay: rgb(0 0 0 / 0.55);
+  --db-dropdown: #2f2f2f;
+  --db-shadow: rgb(0 0 0 / 0.35);
+}
+
+.ripple-host {
+  isolation: isolate;
+}
+
+.ripple-spread {
+  position: absolute;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.18;
+  transform: scale(0);
+  animation: ripple-spread 550ms ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes ripple-spread {
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.toast-item {
+  backdrop-filter: blur(8px);
+}
+
+.toast-item--desktop.toast-item--enter {
+  animation: toast-enter-right 280ms ease-out forwards;
+}
+
+.toast-item--desktop.toast-item--exit {
+  animation: toast-exit-right 260ms ease-in forwards;
+}
+
+.toast-item--phone.toast-item--enter {
+  animation: toast-enter-bottom 280ms ease-out forwards;
+}
+
+.toast-item--phone.toast-item--exit {
+  animation: toast-exit-bottom 260ms ease-in forwards;
+}
+
+.toast-success {
+  border-color: rgb(16 185 129 / 0.35);
+  background: rgb(6 78 59 / 0.92);
+  color: #ecfdf5;
+}
+
+.toast-error {
+  border-color: rgb(248 113 113 / 0.35);
+  background: rgb(127 29 29 / 0.92);
+  color: #fef2f2;
+}
+
+.toast-info {
+  border-color: rgb(161 161 170 / 0.35);
+  background: rgb(24 24 27 / 0.92);
+  color: #fafafa;
+}
+
+@keyframes toast-enter-right {
+  from {
+    opacity: 0;
+    transform: translateX(calc(100% + 1rem));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toast-exit-right {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(calc(100% + 1rem));
+  }
+}
+
+@keyframes toast-enter-bottom {
+  from {
+    opacity: 0;
+    transform: translateY(calc(100% + 1rem));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-exit-bottom {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(calc(100% + 1rem));
+  }
+}
+
+.auth-reveal {
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: auth-rise 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.auth-reveal-1 {
+  animation-delay: 0ms;
+}
+
+.auth-reveal-2 {
+  animation-delay: 300ms;
+}
+
+.auth-reveal-3 {
+  animation-delay: 600ms;
+}
+
+.auth-reveal-4 {
+  animation-delay: 900ms;
+}
+
+@keyframes auth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-reveal {
+    opacity: 1;
+    animation: none;
+    transform: none;
+  }
+}
