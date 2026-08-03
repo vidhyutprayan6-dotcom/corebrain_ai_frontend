@@ -78,6 +78,13 @@ export function SignUpPage() {
       navigate('/signup/check-email', { state: { email: trimmedEmail } })
       showToast('Sign-up started. Check your email to verify your account.', 'success')
     } catch (err) {
+      if (err instanceof ApiError && (err.code === 'USER_ALREADY_EXISTS' || err.status === 409)) {
+        const message = err.message || 'An account with this email already exists. Sign in or reset your password.'
+        setError(message)
+        showToast(message, 'error')
+        return
+      }
+
       const message = err instanceof ApiError ? err.message : 'Sign-up failed. Please try again.'
       setError(message)
       showToast(message, 'error')

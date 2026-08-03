@@ -66,12 +66,12 @@ const API_BASE = normalizeApiBase(import.meta.env.VITE_API_URL ?? '')
 function getApiBaseConfigError(): string | null {
   if (!API_BASE) {
     return import.meta.env.PROD
-      ? 'VITE_API_URL is not set on Vercel. Add your Railway public URL (https://your-app.up.railway.app).'
+      ? 'VITE_API_URL is not set on Vercel. Add your Render backend URL (https://your-app.onrender.com).'
       : 'VITE_API_URL is not set. Add it to web/.env.'
   }
 
   if (API_BASE.includes('.railway.internal') || API_BASE.includes('.internal/')) {
-    return 'VITE_API_URL must use your Railway public domain (https://....up.railway.app), not the private .railway.internal URL.'
+    return 'VITE_API_URL must be your public backend URL (https://your-app.onrender.com), not a private internal hostname.'
   }
 
   if (import.meta.env.PROD && !API_BASE.startsWith('https://')) {
@@ -86,8 +86,10 @@ function apiUrl(path: string) {
 }
 
 const BACKEND_UNREACHABLE = import.meta.env.PROD
-  ? 'Cannot reach the backend API. Check VITE_API_URL on Vercel (must be https://your-app.up.railway.app) and CORS_ORIGIN on Railway, then redeploy both services.'
+  ? 'Cannot reach the backend API. Check VITE_API_URL on Vercel (must be https://your-app.onrender.com) and CORS_ORIGIN on Render, then redeploy both services.'
   : 'Cannot reach the backend API. Start the server with: cd server && npm run dev'
+
+const REQUEST_TIMEOUT_MS = 15_000
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const configError = getApiBaseConfigError()
@@ -95,19 +97,31 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new ApiError(configError, 0)
   }
 
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
   let response: Response
 
   try {
     response = await fetch(apiUrl(path), {
       ...options,
       credentials: 'include',
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         ...options?.headers,
       },
     })
-  } catch {
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError(
+        'Backend request timed out. Check that Render is live and VITE_API_URL points to your .onrender.com URL.',
+        0,
+      )
+    }
     throw new ApiError(BACKEND_UNREACHABLE, 0)
+  } finally {
+    window.clearTimeout(timeoutId)
   }
 
   const contentType = response.headers.get('content-type') ?? ''
@@ -121,13 +135,26 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
 
   const data = (await response.json().catch(() => ({}))) as {
-    error?: string
+    error?: string | number | null
     code?: string
     email?: string
   }
 
   if (!response.ok) {
-    throw new ApiError(data.error ?? 'Request failed.', response.status, data.code, data.email)
+    const rawError = data.error
+    const normalizedError =
+      typeof rawError === 'string'
+        ? rawError.trim()
+        : rawError == null
+          ? ''
+          : String(rawError).trim()
+
+    const message =
+      !normalizedError || normalizedError === '{}' || normalizedError === '[object Object]'
+        ? 'Request failed. Please try again.'
+        : normalizedError
+
+    throw new ApiError(message, response.status, data.code, data.email)
   }
 
   return data as T
